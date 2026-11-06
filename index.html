@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Secret Santa</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#fdf6f0;--card:#fff;--text:#2b2b2b;--muted:#6b6b6b;--accent:#c0392b;--border:#e8d9cf}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1b1416;--card:#271c1f;--text:#f3e9e4;--muted:#b9a8a2;--accent:#ff6b5b;--border:#3d2c30}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1b1416;--card:#271c1f;--text:#f3e9e4;--muted:#b9a8a2;--accent:#ff6b5b;--border:#3d2c30}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:420px;width:100%;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+h1{margin:0 0 6px;font-size:1.6rem}p{color:var(--muted);margin:0 0 18px}
+input{width:100%;box-sizing:border-box;padding:12px;font-size:1.1rem;text-align:center;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
+button{margin-top:12px;width:100%;padding:12px;font-size:1rem;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.err{color:var(--accent);min-height:1.2em;margin-top:10px;font-size:.95rem}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;margin:10px 0;border:1px solid var(--border);border-radius:12px;background:var(--bg)}
+.row b{font-size:1.1rem}.arrow{color:var(--accent)}.small{font-size:.85rem;margin-top:14px}
+</style></head><body>
+<div class="card" id="app">
+<h1>&#127877; Secret Santa</h1>
+<p>Enter your family&rsquo;s secret code to see who you&rsquo;re gifting to.</p>
+<input id="code" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+<button id="go">Reveal</button>
+<div class="err" id="err"></div>
+</div>
+<script>
+const DATA=[{"s": "MH8nHed6AoPOCK9YbDT9RQ==", "i": "rNoHOGdAQd/bMuBf", "c": "LxienCgfyMP2IReoMQAjPg8pVCv3qcmoF0ERoWHLZ2vWD9qN2o3UHRZIXKVuD5AF1xoVbiz5yRE38g=="}, {"s": "rbtd47e6MhE74QMZI5OZ+w==", "i": "0C5cIWjm3Ae0Kn6L", "c": "qcvNAaiNGePPlC2Z33duYCjY5JLTavPJNOsnklIkqrFerZqN0wDQ/vFABSpIpSrZXrmQrbrQ"}, {"s": "YMB/p+bR3uPnHwtJmZSz7A==", "i": "IfQRJqu0LIVx2bZx", "c": "VO85ECR6kk1u4XmqE58WhkEH4/wo8oGbSHRhSL5rkJa1ZZI1ekalFN5gkUqk4x1qprGqcYg="}, {"s": "EKAMjbMmk8HeIFrLVjXu2g==", "i": "47/LvUJGDC/PI47d", "c": "CycHD20jGlOBxTQiAYiSDCQVZ3wG2qykDUZ4NZldyFTX16Kkalxogbkfhk9EWEma/qzm5cM="}, {"s": "b3GL3iOp4O7eYtnBWbhAgQ==", "i": "0Sblcnu5KaKmxyT3", "c": "nSErGRkkp/JO1FRcRBD8mbNr0hV10QWygziV5OeYtFBsHB3gVmzGKDGgXXZjFcf1oS279NwZ"}];
+const d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function tryOpen(code,b){
+ const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(code),"PBKDF2",false,["deriveKey"]);
+ const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:d(b.s),iterations:100000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+ const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:d(b.i)},key,d(b.c));
+ return JSON.parse(new TextDecoder().decode(pt));
+}
+async function reveal(){
+ const code=document.getElementById("code").value.trim().toUpperCase();
+ const err=document.getElementById("err");err.textContent="";
+ if(!code){err.textContent="Please enter your code.";return;}
+ for(const b of DATA){
+  try{
+   const pairs=await tryOpen(code,b);
+   const rows=pairs.map(([g,r])=>'<div class="row"><b>'+g+'</b><span class="arrow">&rarr; gives to &rarr;</span><b>'+r+'</b></div>').join("");
+   document.getElementById("app").innerHTML='<h1>&#127873; Your matches</h1><p>Keep it secret!</p>'+rows+'<p class="small">Close this page when you&rsquo;re done so no one peeks.</p>';
+   return;
+  }catch(e){}
+ }
+ err.textContent="That code didn\u2019t work. Check it and try again.";
+}
+document.getElementById("go").onclick=reveal;
+document.getElementById("code").addEventListener("keydown",e=>{if(e.key==="Enter")reveal();});
+</script></body></html>
